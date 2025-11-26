@@ -23,3 +23,5 @@ Thumbs.db
 *.egg-info/
 dist/
 build/
+# Chroma persistent DB
+chroma_db/

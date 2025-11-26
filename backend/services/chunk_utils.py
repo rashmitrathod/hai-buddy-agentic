@@ -1,17 +1,18 @@
-def chunk_text(text: str, chunk_size: int = 500, overlap: int = 50):
+def stream_chunks(text: str, chunk_size=500, overlap=50):
     """
-    Split text into chunks for embeddings or Q&A.
-    - chunk_size: max number of characters per chunk
-    - overlap: number of characters overlapping between chunks
+    Splits text into chunks of roughly chunk_size words with overlap.
+    Always yields at least one chunk even if text is very short.
     """
-    chunks = []
-    start = 0
-    text_length = len(text)
+    # Remove extra newlines
+    text = text.replace("\n\n", "\n").strip()
+    if not text:
+        return  # nothing to yield
 
-    while start < text_length:
-        end = min(start + chunk_size, text_length)
-        chunks.append(text[start:end])
-        start = end - overlap  # overlap for context
-        if start < 0:
-            start = 0
-    return chunks
+    words = text.split()
+    if len(words) <= chunk_size:
+        yield " ".join(words)  # yield entire text as single chunk
+        return
+
+    for start in range(0, len(words), chunk_size - overlap):
+        end = start + chunk_size
+        yield " ".join(words[start:end])
