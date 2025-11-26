@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+venv/
+.env
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# GCP / Secrets
+*.json        # Avoid committing SA key files
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Python packages
+*.egg-info/
+dist/
+build/
