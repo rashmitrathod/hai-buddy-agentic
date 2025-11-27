@@ -11,6 +11,10 @@ from backend.services.chunk_utils import stream_chunks
 
 from backend.services import vector_store
 
+from backend.services.rag_utils import rag_answer
+
+from backend.route.summaries import router as summaries_router
+
 import os
 
 # $env:GOOGLE_APPLICATION_CREDENTIALS="C:\personal-rashmit\personal\technical_study_learning\Agentic_AI\POC\hai-buddy-agentic\hai-buddy-agentic-sa-key.json"
@@ -24,6 +28,8 @@ print("GCS_BUCKET:", os.getenv("GCS_BUCKET"))
 
 app = FastAPI()
 app.include_router(transcript_router)
+
+app.include_router(summaries_router)
 
 @app.get("/health")
 def health_check():
@@ -85,3 +91,27 @@ def test_embed():
         vector_store.save_chunks(blob.name, chunks, embeddings)
 
     return {"status": "embedding saved to ChromaDB"}
+
+
+
+
+@app.post("/ask")
+def ask_question(payload: dict):
+    question = payload.get("question", "").strip()
+
+    if not question:
+        return {"error": "Question cannot be empty"}
+
+    answer = rag_answer(question)
+
+    return {
+        "question": question,
+        "answer": answer
+    }
+
+
+@app.get("/test_summary")
+def test_summary():
+    from backend.services.summary_service import generate_summary
+    text = "This is a test transcript. It teaches how to create AI agents using tools..."
+    return {"summary": generate_summary(text)}

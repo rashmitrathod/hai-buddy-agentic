@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+
 def get_embedding(text_chunks: list[str]):
     """
     Accepts a list of strings (chunks) and returns list of embedding vectors.
@@ -25,3 +26,13 @@ def get_embedding(text_chunks: list[str]):
     embeddings = [item.embedding for item in response.data]
 
     return embeddings
+
+def get_single_embedding(text: str):
+    """
+    Returns a single embedding vector for a single text string.
+    """
+    response = client.embeddings.create(
+        model="text-embedding-3-small",
+        input=[text]
+    )
+    return response.data[0].embedding

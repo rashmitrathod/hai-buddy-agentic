@@ -1,0 +1,7 @@
+### Test /ask endpoint
+POST http://localhost:8899/ask
+Content-Type: application/json
+
+{
+  "question": "What topics are covered in video 1?"
+}

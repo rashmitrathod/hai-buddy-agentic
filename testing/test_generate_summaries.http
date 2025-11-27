@@ -1,0 +1,2 @@
+POST http://localhost:8899/generate_summaries
+Content-Type: application/json

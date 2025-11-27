@@ -2,6 +2,8 @@ import os
 import chromadb
 from chromadb.config import Settings
 
+from backend.services.embedding_utils import get_single_embedding
+
 # Persistent database directory
 DB_PATH = os.path.join(os.getcwd(), "chroma_db")
 
@@ -44,3 +46,13 @@ def save_chunks(video_name: str, chunks: list, embeddings: list):
     )
 
     return True
+
+from backend.services.gcs_loader import get_client
+
+def save_summary_to_gcs(bucket_name: str, video_name: str, summary: str):
+    client = get_client()
+    bucket = client.bucket(bucket_name)
+    blob_name = f"summaries/{video_name.replace('.txt','_summary.txt')}"
+    blob = bucket.blob(blob_name)
+    blob.upload_from_string(summary, content_type="text/plain")
+    return blob_name

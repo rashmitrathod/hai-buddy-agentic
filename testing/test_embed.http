@@ -1,0 +1,3 @@
+### Test Embedding
+GET http://localhost:8899/test_embed
+Accept: application/json
