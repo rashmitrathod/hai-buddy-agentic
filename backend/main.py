@@ -15,6 +15,13 @@ from backend.services.rag_utils import rag_answer
 
 from backend.route.summaries import router as summaries_router
 
+from backend.services.stt_service import transcribe_audio
+
+import uuid
+from fastapi import FastAPI, UploadFile, File
+from backend.services.rag_pipeline import answer_question
+from backend.services.tts import synthesize_text_to_gcs
+
 import os
 
 # $env:GOOGLE_APPLICATION_CREDENTIALS="C:\personal-rashmit\personal\technical_study_learning\Agentic_AI\POC\hai-buddy-agentic\hai-buddy-agentic-sa-key.json"
@@ -95,19 +102,35 @@ def test_embed():
 
 
 
+
+
+app = FastAPI()
 @app.post("/ask")
-def ask_question(payload: dict):
-    question = payload.get("question", "").strip()
-
+async def ask_question(request: dict):
+    """
+    Accepts:
+      - text question
+      - OR STT transcript
+    Returns:
+      - answer text
+      - GCS audio URL
+    """
+    question = request.get("question")
     if not question:
-        return {"error": "Question cannot be empty"}
+        return {"error": "No question provided"}
 
-    answer = rag_answer(question)
+    # RAG + LLM processing
+    answer_text = answer_question(question)
+
+    # Convert answer to speech
+    audio_url = synthesize_text_to_gcs(answer_text)
 
     return {
         "question": question,
-        "answer": answer
+        "answer": answer_text,
+        "audio_url": audio_url
     }
+
 
 
 @app.get("/test_summary")
@@ -115,3 +138,14 @@ def test_summary():
     from backend.services.summary_service import generate_summary
     text = "This is a test transcript. It teaches how to create AI agents using tools..."
     return {"summary": generate_summary(text)}
+
+
+@app.post("/stt")
+async def speech_to_text(file: UploadFile = File(...)):
+    audio_bytes = await file.read()
+
+    transcript = transcribe_audio(audio_bytes)
+
+    return {
+        "transcript": transcript
+    }

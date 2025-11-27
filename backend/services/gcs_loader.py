@@ -1,5 +1,9 @@
 import os
+import uuid
+from datetime import timedelta
 from google.cloud import storage
+from dotenv import load_dotenv
+
 
 def get_client():
     return storage.Client()
@@ -25,3 +29,51 @@ def load_transcript(bucket_name: str, blob_name: str) -> str:
     print(f'transcript:{transcript}')
 
     return transcript
+
+
+load_dotenv(override=True)
+BUCKET_NAME = os.getenv("GCS_BUCKET")
+
+# backend/services/gcs_audio.py
+import os
+import uuid
+from datetime import timedelta
+from google.cloud import storage
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+BUCKET_NAME = os.getenv("GCS_BUCKET")
+
+def upload_audio_bytes(filename: str, audio_bytes: bytes) -> str:
+    """
+    Upload audio bytes to GCS bucket and return a signed URL.
+    If filename is None or empty, generate a UUID-based filename.
+    """
+    if not BUCKET_NAME:
+        raise ValueError("GCS_BUCKET not set in environment")
+
+    client = storage.Client()
+    bucket = client.bucket(BUCKET_NAME)
+
+    # Use provided filename or generate one
+    if not filename:
+        filename = f"audio/{uuid.uuid4()}.mp3"
+    else:
+        # Ensure it's under 'audio/' folder
+        if not filename.startswith("audio/"):
+            filename = f"audio/{filename}"
+
+    blob = bucket.blob(filename)
+    
+    # Upload raw audio bytes
+    blob.upload_from_string(audio_bytes, content_type="audio/mpeg")
+
+    # Generate a signed URL valid for 1 hour
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=timedelta(hours=1),
+        method="GET"
+    )
+
+    return url
