@@ -18,7 +18,7 @@ def generate_summary(transcript_text: str) -> str:
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=400,
-        timeout=30   # <-- add timeout to avoid hanging
+        timeout=30   # timeout to avoid hanging
     )
 
     summary = response.choices[0].message.content.strip()

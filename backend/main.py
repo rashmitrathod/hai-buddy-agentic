@@ -1,3 +1,5 @@
+import os
+from pydantic import BaseModel
 from fastapi import FastAPI
 from backend.api.transcript_api import router as transcript_router
 from dotenv import load_dotenv
@@ -22,7 +24,6 @@ from fastapi import FastAPI, UploadFile, File
 from backend.services.rag_pipeline import answer_question
 from backend.services.tts import synthesize_text_to_gcs
 
-import os
 
 # $env:GOOGLE_APPLICATION_CREDENTIALS="C:\personal-rashmit\personal\technical_study_learning\Agentic_AI\POC\hai-buddy-agentic\hai-buddy-agentic-sa-key.json"
 
@@ -40,6 +41,7 @@ app.include_router(summaries_router)
 
 @app.get("/health")
 def health_check():
+    print('Inside /health route')
     return {"status": "ok"}
 
 
@@ -103,33 +105,71 @@ def test_embed():
 
 
 
+from backend.services.rag_engine import (
+    retrieve_relevant_chunks,
+    build_context,
+    generate_llm_answer
+)
 
-app = FastAPI()
+#app = FastAPI()
+
+class AskRequest(BaseModel):
+    question: str
+
 @app.post("/ask")
-async def ask_question(request: dict):
-    """
-    Accepts:
-      - text question
-      - OR STT transcript
-    Returns:
-      - answer text
-      - GCS audio URL
-    """
-    question = request.get("question")
-    if not question:
-        return {"error": "No question provided"}
+async def ask_endpoint(payload: AskRequest):
+    query = payload.question
 
-    # RAG + LLM processing
-    answer_text = answer_question(question)
+    # Retrieve relevant transcript chunks
+    chunks, metadata = retrieve_relevant_chunks(query)
 
-    # Convert answer to speech
-    audio_url = synthesize_text_to_gcs(answer_text)
+    if not chunks:
+        final_answer = "Sorry, I don't have enough information in my course knowledge base to answer this."
+        audio_url = synthesize_text_to_gcs(final_answer)
+        return {"question": query, "answer": final_answer, "audio_url": audio_url}
+
+    # Build context block
+    context = build_context(chunks)
+
+    # Generate LLM answer grounded on context
+    final_answer = generate_llm_answer(query, context)
+
+    # Convert answer to audio
+    audio_url = synthesize_text_to_gcs(final_answer)
 
     return {
-        "question": question,
-        "answer": answer_text,
-        "audio_url": audio_url
+        "question": query,
+        "answer": final_answer,
+        "audio_url": audio_url,
+        "retrieved_chunks": chunks
     }
+
+# # app = FastAPI()
+# @app.post("/ask")
+# async def ask_question(request: dict):
+#     """
+#     Accepts:
+#       - text question
+#       - OR STT transcript
+#     Returns:
+#       - answer text
+#       - GCS audio URL
+#     """
+#     question = request.get("question")
+#     if not question:
+#         return {"error": "No question provided"}
+
+#     # RAG + LLM processing
+#     answer_text = answer_question(question)
+
+#     # Convert answer to speech
+#     audio_url = synthesize_text_to_gcs(answer_text)
+
+#     return {
+#         "question": question,
+#         "answer": answer_text,
+#         "audio_url": audio_url
+#     }
 
 
 
@@ -149,3 +189,5 @@ async def speech_to_text(file: UploadFile = File(...)):
     return {
         "transcript": transcript
     }
+
+
