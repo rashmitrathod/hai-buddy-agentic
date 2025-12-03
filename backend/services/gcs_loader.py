@@ -4,6 +4,7 @@ from datetime import timedelta
 from google.cloud import storage
 from dotenv import load_dotenv
 
+load_dotenv(override=True)
 
 def get_client():
     return storage.Client()
@@ -32,17 +33,6 @@ def load_transcript(bucket_name: str, blob_name: str) -> str:
 
 
 load_dotenv(override=True)
-BUCKET_NAME = os.getenv("GCS_BUCKET")
-
-# backend/services/gcs_audio.py
-import os
-import uuid
-from datetime import timedelta
-from google.cloud import storage
-from dotenv import load_dotenv
-
-load_dotenv(override=True)
-
 BUCKET_NAME = os.getenv("GCS_BUCKET")
 
 def upload_audio_bytes(filename: str, audio_bytes: bytes) -> str:

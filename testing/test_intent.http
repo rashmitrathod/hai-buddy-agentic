@@ -1,0 +1,6 @@
+POST http://localhost:8899/test_intent
+Content-Type: application/json
+
+{
+  "question": "What did I asked you earlier?"
+}

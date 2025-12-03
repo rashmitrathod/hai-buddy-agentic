@@ -24,8 +24,8 @@ from fastapi import FastAPI, UploadFile, File
 from backend.services.rag_pipeline import answer_question
 from backend.services.tts import synthesize_text_to_gcs
 
-
-# $env:GOOGLE_APPLICATION_CREDENTIALS="C:\personal-rashmit\personal\technical_study_learning\Agentic_AI\POC\hai-buddy-agentic\hai-buddy-agentic-sa-key.json"
+from backend.services.intent_classifier import classify_intent
+from backend.services.router import route_question
 
 # Load .env file automatically
 load_dotenv(override=True)
@@ -102,75 +102,73 @@ def test_embed():
     return {"status": "embedding saved to ChromaDB"}
 
 
-
-
-
 from backend.services.rag_engine import (
     retrieve_relevant_chunks,
     build_context,
     generate_llm_answer
 )
 
-#app = FastAPI()
-
 class AskRequest(BaseModel):
     question: str
 
+# @app.post("/ask")
+# async def ask_endpoint(payload: AskRequest):
+#     query = payload.question
+
+#     # Retrieve relevant transcript chunks
+#     chunks, metadata = retrieve_relevant_chunks(query)
+
+#     if not chunks:
+#         final_answer = "Sorry, I don't have enough information in my course knowledge base to answer this."
+#         audio_url = synthesize_text_to_gcs(final_answer)
+#         return {"question": query, "answer": final_answer, "audio_url": audio_url}
+
+#     # Build context block
+#     context = build_context(chunks)
+
+#     # Generate LLM answer grounded on context
+#     final_answer = generate_llm_answer(query, context)
+
+#     # Convert answer to audio
+#     audio_url = synthesize_text_to_gcs(final_answer)
+
+#     return {
+#         "question": query,
+#         "answer": final_answer,
+#         "audio_url": audio_url,
+#         "retrieved_chunks": chunks
+#     }
+
+from fastapi import Request
+from backend.services.crew.orchestrator_agent import CrewOrchestrator
+from backend.services.tts import synthesize_text_to_gcs
+
 @app.post("/ask")
-async def ask_endpoint(payload: AskRequest):
-    query = payload.question
+async def ask_endpoint(request: Request):
+  
+    body = await request.json()
+    question = body.get("question")
 
-    # Retrieve relevant transcript chunks
-    chunks, metadata = retrieve_relevant_chunks(query)
+    session_id = request.get("session_id", "default_session")
+    orchestrator = CrewOrchestrator(session_id=session_id)
 
-    if not chunks:
-        final_answer = "Sorry, I don't have enough information in my course knowledge base to answer this."
-        audio_url = synthesize_text_to_gcs(final_answer)
-        return {"question": query, "answer": final_answer, "audio_url": audio_url}
+    if not question:
+        return {"error": "No question provided"}
 
-    # Build context block
-    context = build_context(chunks)
+    # Run CrewAI multi-agent pipeline
+    orchestrator = CrewOrchestrator()
+    # final_answer = orchestrator.run(question)
+    # final_answer, intent = route_question(question)
+    final_answer = orchestrator.run(question)
 
-    # Generate LLM answer grounded on context
-    final_answer = generate_llm_answer(query, context)
-
-    # Convert answer to audio
+    # Generate speech URL
     audio_url = synthesize_text_to_gcs(final_answer)
 
     return {
-        "question": query,
+        "question": question,
         "answer": final_answer,
-        "audio_url": audio_url,
-        "retrieved_chunks": chunks
+        "audio_url": audio_url
     }
-
-# # app = FastAPI()
-# @app.post("/ask")
-# async def ask_question(request: dict):
-#     """
-#     Accepts:
-#       - text question
-#       - OR STT transcript
-#     Returns:
-#       - answer text
-#       - GCS audio URL
-#     """
-#     question = request.get("question")
-#     if not question:
-#         return {"error": "No question provided"}
-
-#     # RAG + LLM processing
-#     answer_text = answer_question(question)
-
-#     # Convert answer to speech
-#     audio_url = synthesize_text_to_gcs(answer_text)
-
-#     return {
-#         "question": question,
-#         "answer": answer_text,
-#         "audio_url": audio_url
-#     }
-
 
 
 @app.get("/test_summary")
@@ -190,4 +188,20 @@ async def speech_to_text(file: UploadFile = File(...)):
         "transcript": transcript
     }
 
+@app.post("/test_intent")
+def test_intent(req: dict):
+    question = req.get("question")
+    intent = classify_intent(question)
+    return {"question": question, "intent": intent}
 
+
+from backend.services.crew.orchestrator_agent import CrewOrchestrator
+orchestrator = CrewOrchestrator()
+
+@app.post("/ask_new")
+def ask_new(req: dict):
+    print(f"/ask_new has invoked")
+    question = req.get("question")
+    print(f"question: {question}")
+    answer = orchestrator.run(question)
+    return {"question": question, "answer": answer}

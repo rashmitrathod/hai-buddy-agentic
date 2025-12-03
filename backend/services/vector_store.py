@@ -76,3 +76,26 @@ def save_summary_to_gcs(bucket_name: str, video_name: str, summary: str):
     blob.upload_from_string(summary, content_type="text/plain")
 
     return blob_name
+
+def query_chunks(query_embedding, top_k: int = 5) -> list[str]:
+    """
+    Query ChromaDB and return top matching transcript chunks.
+    """
+    collection = get_collection()
+
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=top_k
+    )
+
+    # Extract returned documents
+    docs = results.get("documents", [[]])[0]
+
+    return docs
+
+
+def get_memory_collection():
+    return client.get_or_create_collection(
+        name="hai_memory",
+        metadata={"hnsw:space": "cosine"}
+    )

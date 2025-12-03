@@ -20,4 +20,7 @@ python-dotenv==1.0.0
 streamlit==1.33.0
 streamlit-mic-recorder==0.0.4
 requests==2.31.0
-pydub==0.25.1
+
+# Agentic Framework
+crewai
+langchain
