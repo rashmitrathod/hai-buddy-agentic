@@ -1,9 +1,14 @@
 import os
+import httpx
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    http_client=httpx.Client(proxies={})
+)
 
 
 def get_embedding(text_chunks: list[str]):

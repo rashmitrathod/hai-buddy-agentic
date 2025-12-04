@@ -56,7 +56,8 @@ def recall_memory(query: str) -> str:
     Retrieve the most relevant memory snippet for this query.
     """
     embedding = get_single_embedding(query)
-    memory_collection = get_memory_collection
+    # memory_collection = get_memory_collection
+    memory_collection = get_memory_collection()
 
     results = memory_collection.query(
         query_embeddings=[embedding],

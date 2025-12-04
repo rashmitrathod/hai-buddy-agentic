@@ -1,26 +1,4 @@
-# from crewai.tools import BaseTool
-# from typing import Optional
-# from backend.services.rag_engine import retrieve_relevant_chunks
-
-# class RAGRetrievalTool(BaseTool):
-#     name: str = "rag_retriever"
-#     description: str = (
-#         "Retrieve relevant transcript chunks from the course using semantic search."
-#     )
-
-#     def _run(self, query: str) -> str:
-#         """Perform vector search and return combined context."""
-#         results = retrieve_relevant_chunks(query, top_k=4)
-#         context = "\n\n".join(results)
-#         return context
-
-#     async def _arun(self, query: str) -> str:
-#         """Async version (not used currently)."""
-#         return self._run(query)
-
-from crewai.tools import BaseTool
-from typing import Optional
-from pydantic import Field
+from crewai_tools import BaseTool
 
 from backend.services.rag_engine import answer_with_rag
 from backend.services.code_helper import answer_code_question

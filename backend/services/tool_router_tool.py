@@ -1,7 +1,4 @@
-from crewai.tools import BaseTool
-from pydantic import Field
-from typing import Optional
-
+from crewai_tools import BaseTool
 from backend.services.router import route_question
 
 class ToolRouterTool(BaseTool):

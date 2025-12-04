@@ -14,14 +14,24 @@ def generate_summary(transcript_text: str) -> str:
     ---
     """
 
+    # response = client.chat.completions.create(
+    #     model="gpt-4o-mini",
+    #     messages=[{"role": "user", "content": prompt}],
+    #     max_tokens=400,
+    #     timeout=30   # timeout to avoid hanging
+    # )
+    # summary = response.choices[0].message.content.strip()
+
+
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=400,
-        timeout=30   # timeout to avoid hanging
+        timeout=30
     )
+    summary = response.choices[0].message.content
 
-    summary = response.choices[0].message.content.strip()
+
     print("Summary generated. Length:", len(summary))
     return summary
 
@@ -32,9 +42,16 @@ def generate_summary_for_question(question: str) -> str:
     """
     prompt = f"Make simple, short notes for: {question}"
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=300
-    )
-    return response.choices[0].message.content
+    # response = client.chat.completions.create(
+    #     model="gpt-4o-mini",
+    #     messages=[{"role": "user", "content": prompt}],
+    #     max_tokens=300
+    # )
+    # return response.choices[0].message.content
+
+
+    response = client.responses.create(
+    model="gpt-4o-mini",
+    input=[{"role": "user", "content": prompt}],
+    max_output_tokens=300)
+    return response.output_text

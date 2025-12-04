@@ -104,14 +104,22 @@ Transcript Context:
     print(f"Invoking OpenAI now")
 
     # 4. Call OpenAI
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        max_tokens=300
-    )
+    # response = client.chat.completions.create(
+    #     model="gpt-4o-mini",
+    #     messages=messages,
+    #     max_tokens=300
+    # )
 
-    print(f"OpenAI invocation completed, Response received")
-    return response.choices[0].message.content
+    # print(f"OpenAI invocation completed, Response received")
+    # return response.choices[0].message.content
+
+    response = client.responses.create(
+    model="gpt-4o-mini",
+    input=messages,
+    max_output_tokens=300)
+
+    return response.output_text
+
 
 def answer_with_rag(question: str) -> str:
     """
@@ -146,13 +154,23 @@ def answer_with_rag(question: str) -> str:
     Answer clearly, concisely, and in friendly tone.
     """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are HAI Buddy, a friendly course assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=300
-    )
+    # response = client.chat.completions.create(
+    #     model="gpt-4o-mini",
+    #     messages=[
+    #         {"role": "system", "content": "You are HAI Buddy, a friendly course assistant."},
+    #         {"role": "user", "content": prompt}
+    #     ],
+    #     max_tokens=300
+    # )
 
-    return response.choices[0].message.content
+    # return response.choices[0].message.content
+
+    response = client.responses.create(
+    model="gpt-4o-mini",
+    input=[
+        {"role": "system", "content": "You are HAI Buddy, a friendly course assistant."},
+        {"role": "user", "content": prompt}
+    ],
+    max_output_tokens=300)
+
+    return response.output_text

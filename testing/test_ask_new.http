@@ -1,10 +1,6 @@
 POST http://localhost:8899/ask_new
 Content-Type: application/json
 
-# {
-#   "question": "Bhai video 3 ka summary batao"
-# }
-
 {
   "question": "Bhai CrewAI and MCP me kya difference hai?"
 }
