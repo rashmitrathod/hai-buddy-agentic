@@ -1,0 +1,38 @@
+# Python / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+
+# IDE and editor configs
+.vscode/
+.idea/
+*.swp
+
+# Git
+.git/
+.gitignore
+
+# Environment variables
+.env
+
+# Chroma DB local storage
+chroma-db/
+chroma/
+chromadb/
+vector_store/
+data/
+*.sqlite
+
+# Mac / OS / Misc
+.DS_Store
+*.log
+
+# Node / Frontend caches (if ever used)
+node_modules/
+dist/
+build/
