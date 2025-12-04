@@ -22,6 +22,3 @@ openai==1.24.0
 
 chromadb==0.4.24
 onnxruntime==1.23.2
-
-streamlit==1.33.0
-streamlit-mic-recorder==0.0.4

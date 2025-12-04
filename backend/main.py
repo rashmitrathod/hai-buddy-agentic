@@ -1,6 +1,7 @@
 import os
 from pydantic import BaseModel
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from backend.api.transcript_api import router as transcript_router
 from dotenv import load_dotenv
 from backend.services.gcs_loader import load_transcript, list_transcripts
@@ -27,6 +28,11 @@ from backend.services.tts import synthesize_text_to_gcs
 from backend.services.intent_classifier import classify_intent
 from backend.services.router import route_question
 
+from backend.websocket_chat import router as ws_router
+
+
+
+
 # Load .env file automatically
 load_dotenv(override=True)
 
@@ -35,9 +41,12 @@ print("GOOGLE_APPLICATION_CREDENTIALS:", os.getenv("GOOGLE_APPLICATION_CREDENTIA
 print("GCS_BUCKET:", os.getenv("GCS_BUCKET"))
 
 app = FastAPI()
+app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
+
 app.include_router(transcript_router)
 
 app.include_router(summaries_router)
+app.include_router(ws_router)
 
 @app.get("/health")
 def health_check():
@@ -45,10 +54,10 @@ def health_check():
     return {"status": "ok"}
 
 
-@app.get("/test_load")
-def test_load():
-    data = load_all_transcripts()
-    return {"videos_loaded": list(data.keys())}
+# @app.get("/test_load")
+# def test_load():
+#     data = load_all_transcripts()
+#     return {"videos_loaded": list(data.keys())}
 
 @app.get("/test_chunks")
 def test_chunks():

@@ -1,0 +1,120 @@
+<!-- frontend/index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>HAI Buddy — Realtime Chat</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; max-width: 900px; margin: 20px auto; }
+    #messages { border: 1px solid #ddd; padding: 12px; min-height: 300px; max-height: 60vh; overflow:auto; }
+    .msg { margin: 8px 0; }
+    .user { color: white; background: #3b82f6; padding:8px 12px; border-radius:14px; display:inline-block; }
+    .assistant { color: #111; background: #e5e7eb; padding:8px 12px; border-radius:14px; display:inline-block; }
+    #controls { margin-top:12px; display:flex; gap:8px; }
+    #input { flex:1; padding:10px; font-size:16px; }
+  </style>
+</head>
+<body>
+  <h2>HAI Buddy — Realtime Chat</h2>
+  <div id="messages"></div>
+
+  <div id="controls">
+    <input id="input" placeholder="Type your question..." />
+    <button id="send">Send</button>
+    <button id="startVoice">Voice (browser)</button>
+  </div>
+
+  <script>
+    const sessionIdKey = "hai_session_id";
+    let sessionId = localStorage.getItem(sessionIdKey);
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      localStorage.setItem(sessionIdKey, sessionId);
+    }
+
+    const wsUrl = `ws://${location.hostname}:8899/ws/chat/${sessionId}`;
+    // If you use https, use wss:// and ensure TLS. For local dev, ws:// is fine.
+    const ws = new WebSocket(wsUrl);
+
+    const messagesDiv = document.getElementById("messages");
+    function appendMessage(text, cls) {
+      const d = document.createElement("div");
+      d.className = "msg";
+      const inner = document.createElement("div");
+      inner.className = cls;
+      inner.textContent = text;
+      d.appendChild(inner);
+      messagesDiv.appendChild(d);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    ws.onopen = () => {
+      appendMessage("Connected to HAI Buddy", "assistant");
+    };
+
+    ws.onmessage = (evt) => {
+      try {
+        const obj = JSON.parse(evt.data);
+        if (obj.type === "assistant_message") {
+          appendMessage(obj.text, "assistant");
+          if (obj.audio_url) {
+            // Play audio if provided
+            const a = new Audio(obj.audio_url);
+            a.play().catch(e => console.warn("Audio play failed", e));
+          }
+        } else if (obj.type === "assistant_typing") {
+          appendMessage("HAI Buddy is thinking...", "assistant");
+        } else if (obj.type === "error") {
+          appendMessage("[ERROR] " + obj.message, "assistant");
+        }
+      } catch(e) {
+        console.error(e);
+      }
+    };
+
+    ws.onclose = () => {
+      appendMessage("Connection closed", "assistant");
+    };
+
+    document.getElementById("send").onclick = () => {
+      const inp = document.getElementById("input");
+      const text = inp.value.trim();
+      if (!text) return;
+      appendMessage(text, "user");
+      ws.send(JSON.stringify({ type: "user_message", text }));
+      inp.value = "";
+    };
+
+    // Simple browser voice capture (short push-to-talk)
+    document.getElementById("startVoice").onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // record single turn with MediaRecorder
+        const mediaRecorder = new MediaRecorder(stream);
+        const chunks = [];
+        mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          const blob = new Blob(chunks, { type: "audio/webm" });
+          // send blob to backend STT endpoint to transcribe, then send user text over websocket
+          const fd = new FormData();
+          fd.append("file", blob, "turn.webm");
+          const resp = await fetch(`${location.protocol}//${location.hostname}:8899/stt`, { method: "POST", body: fd });
+          if (resp.ok) {
+            const json = await resp.json();
+            const transcript = json.transcript;
+            appendMessage(transcript, "user");
+            ws.send(JSON.stringify({ type: "user_message", text: transcript }));
+          } else {
+            appendMessage("STT failed", "assistant");
+          }
+        };
+        mediaRecorder.start();
+        // auto-stop after 5s or when user clicks again - for demo we stop after timeout
+        setTimeout(() => mediaRecorder.stop(), 4000);
+      } catch (e) {
+        appendMessage("Microphone access denied or error: " + e.message, "assistant");
+      }
+    };
+  </script>
+</body>
+</html>
