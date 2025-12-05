@@ -1,39 +1,25 @@
-import os
 import chromadb
 from chromadb.config import Settings
+import os
 
 from backend.services.embedding_utils import get_single_embedding
 from backend.services.gcs_loader import get_client
 
-# Local persistent ChromaDB path
-DB_PATH = os.path.join(os.getcwd(), "chroma_db")
-
-# Initialize Chroma client (no telemetry)
-client = chromadb.PersistentClient(
-    path=DB_PATH,
-    settings=Settings(
+# Cloud Run–safe: in-memory Chroma client
+client = chromadb.Client(
+    Settings(
         anonymized_telemetry=False,
     )
 )
 
 def get_collection():
-    """
-    Get or create the ChromaDB collection for transcript embeddings.
-    IMPORTANT: embedding_function=None disables Chroma's default ONNX
-    embedding model (384-dim) to avoid dimensional mismatch.
-    """
     return client.get_or_create_collection(
         name="udemy_transcripts",
         metadata={"hnsw:space": "cosine"},
-        embedding_function=None  # <-- CRITICAL FIX
+        embedding_function=None
     )
 
-
 def save_chunks(video_name: str, chunks: list, embeddings: list):
-    """
-    Store transcript text chunks + embeddings in ChromaDB.
-    All embeddings must have dimension 1536 (OpenAI text-embedding-3-small).
-    """
     collection = get_collection()
 
     ids = []
@@ -48,7 +34,6 @@ def save_chunks(video_name: str, chunks: list, embeddings: list):
         })
         documents.append(chunk)
 
-    # Validate embedding dimensions
     for emb in embeddings:
         if len(emb) != 1536:
             raise ValueError(f"Invalid embedding dimension {len(emb)} — expected 1536")
@@ -62,11 +47,7 @@ def save_chunks(video_name: str, chunks: list, embeddings: list):
 
     return True
 
-
 def save_summary_to_gcs(bucket_name: str, video_name: str, summary: str):
-    """
-    Save summary text to GCS in summaries/ folder.
-    """
     storage_client = get_client()
     bucket = storage_client.bucket(bucket_name)
 
@@ -74,25 +55,15 @@ def save_summary_to_gcs(bucket_name: str, video_name: str, summary: str):
     blob = bucket.blob(blob_name)
 
     blob.upload_from_string(summary, content_type="text/plain")
-
     return blob_name
 
 def query_chunks(query_embedding, top_k: int = 5) -> list[str]:
-    """
-    Query ChromaDB and return top matching transcript chunks.
-    """
     collection = get_collection()
-
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=top_k
     )
-
-    # Extract returned documents
-    docs = results.get("documents", [[]])[0]
-
-    return docs
-
+    return results.get("documents", [[]])[0]
 
 def get_memory_collection():
     return client.get_or_create_collection(

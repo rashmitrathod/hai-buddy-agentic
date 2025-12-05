@@ -1,6 +1,9 @@
-POST http://localhost:8899/ask_new
+POST http://localhost:8080/ask_new
 Content-Type: application/json
 
+# {
+#   "question": "Bhai CrewAI and MCP me kya difference hai?"
+# }
 {
-  "question": "Bhai CrewAI and MCP me kya difference hai?"
+   "question": "Just share me 2 liner summary from video-15 ?"
 }

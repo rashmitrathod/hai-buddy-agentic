@@ -1,6 +1,9 @@
-POST http://localhost:8899/test_intent
+POST http://localhost:8080/test_intent
 Content-Type: application/json
 
+# {
+#   "question": "What did I asked you earlier?"
+# }
 {
-  "question": "What did I asked you earlier?"
+  "question": "What is AI?"
 }

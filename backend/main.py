@@ -2,6 +2,10 @@ import os
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi import APIRouter, UploadFile, File
+from google.cloud import speech
+
 from backend.api.transcript_api import router as transcript_router
 from dotenv import load_dotenv
 from backend.services.gcs_loader import load_transcript, list_transcripts
@@ -28,7 +32,7 @@ from backend.services.tts import synthesize_text_to_gcs
 from backend.services.intent_classifier import classify_intent
 from backend.services.router import route_question
 
-from backend.websocket_chat import router as ws_router
+from backend.services.sse_chat import router as sse_router
 
 
 
@@ -41,17 +45,21 @@ print("GOOGLE_APPLICATION_CREDENTIALS:", os.getenv("GOOGLE_APPLICATION_CREDENTIA
 print("GCS_BUCKET:", os.getenv("GCS_BUCKET"))
 
 app = FastAPI()
-app.mount("/frontend", StaticFiles(directory="frontend", html=True), name="frontend")
 
 app.include_router(transcript_router)
-
 app.include_router(summaries_router)
-app.include_router(ws_router)
+app.include_router(sse_router)
+
 
 @app.get("/health")
 def health_check():
     print('Inside /health route')
     return {"status": "ok"}
+
+@app.get("/talk")
+def talk_page():
+    return FileResponse("frontend/index.html")
+
 
 
 # @app.get("/test_load")
@@ -120,34 +128,6 @@ from backend.services.rag_engine import (
 class AskRequest(BaseModel):
     question: str
 
-# @app.post("/ask")
-# async def ask_endpoint(payload: AskRequest):
-#     query = payload.question
-
-#     # Retrieve relevant transcript chunks
-#     chunks, metadata = retrieve_relevant_chunks(query)
-
-#     if not chunks:
-#         final_answer = "Sorry, I don't have enough information in my course knowledge base to answer this."
-#         audio_url = synthesize_text_to_gcs(final_answer)
-#         return {"question": query, "answer": final_answer, "audio_url": audio_url}
-
-#     # Build context block
-#     context = build_context(chunks)
-
-#     # Generate LLM answer grounded on context
-#     final_answer = generate_llm_answer(query, context)
-
-#     # Convert answer to audio
-#     audio_url = synthesize_text_to_gcs(final_answer)
-
-#     return {
-#         "question": query,
-#         "answer": final_answer,
-#         "audio_url": audio_url,
-#         "retrieved_chunks": chunks
-#     }
-
 from fastapi import Request
 from backend.services.crew.orchestrator_agent import CrewOrchestrator
 from backend.services.tts import synthesize_text_to_gcs
@@ -187,15 +167,43 @@ def test_summary():
     return {"summary": generate_summary(text)}
 
 
-@app.post("/stt")
-async def speech_to_text(file: UploadFile = File(...)):
+# @app.post("/stt")
+# async def speech_to_text(file: UploadFile = File(...)):
+#     audio_bytes = await file.read()
+
+#     transcript = transcribe_audio(audio_bytes)
+
+#     return {
+#         "transcript": transcript
+#     }
+
+####
+
+router = APIRouter()
+speech_client = speech.SpeechClient()
+
+@router.post("/stt")
+async def stt_route(file: UploadFile = File(...)):
     audio_bytes = await file.read()
 
-    transcript = transcribe_audio(audio_bytes)
+    audio = speech.RecognitionAudio(content=audio_bytes)
 
-    return {
-        "transcript": transcript
-    }
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.WEBM_OPUS,
+        sample_rate_hertz=48000,  # Chrome usually records at 48000 Hz
+        language_code="en-US",
+        audio_channel_count=1,
+        enable_automatic_punctuation=True
+    )
+
+    response = speech_client.recognize(config=config, audio=audio)
+
+    transcript = ""
+    for result in response.results:
+        transcript += result.alternatives[0].transcript
+
+    return {"transcript": transcript}
+####
 
 @app.post("/test_intent")
 def test_intent(req: dict):
