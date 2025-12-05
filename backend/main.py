@@ -12,11 +12,11 @@ from backend.services.gcs_loader import load_transcript, list_transcripts
 from backend.services.chunk_utils import stream_chunks
 from backend.services.embedding_utils import get_embedding
 
-from backend.services.vector_store import save_chunks
+# from backend.services.vector_store_lance import save_chunks
 import backend.services.embedding_utils as embedding_utils
 from backend.services.chunk_utils import stream_chunks
 
-from backend.services import vector_store
+from backend.services import vector_store_lance
 
 from backend.services.rag_utils import rag_answer
 
@@ -33,7 +33,7 @@ from backend.services.intent_classifier import classify_intent
 from backend.services.router import route_question
 
 from backend.services.sse_chat import router as sse_router
-
+from backend.route.setup_loader import router as setup_router
 
 
 
@@ -49,6 +49,7 @@ app = FastAPI()
 app.include_router(transcript_router)
 app.include_router(summaries_router)
 app.include_router(sse_router)
+app.include_router(setup_router)
 
 
 @app.get("/health")
@@ -99,24 +100,24 @@ def test_chunks():
     }
 
 
-@app.get("/test_embed")
-def test_embed():
-    bucket = os.getenv("GCS_BUCKET")
-    prefix = "transcripts/"
+# @app.get("/test_embed")
+# def test_embed():
+#     bucket = os.getenv("GCS_BUCKET")
+#     prefix = "transcripts/"
 
-    blobs = list_transcripts(bucket, prefix)
+#     blobs = list_transcripts(bucket, prefix)
 
-    for blob in blobs:
-        print("Found file:", blob.name)
-        content = load_transcript(bucket, blob.name)
-        print(f"DEBUG: {blob.name} content length:", len(content))
-        chunks = list(stream_chunks(content))
-        print(f"DEBUG: {blob.name} -> {len(chunks)} chunks generated")
+#     for blob in blobs:
+#         print("Found file:", blob.name)
+#         content = load_transcript(bucket, blob.name)
+#         print(f"DEBUG: {blob.name} content length:", len(content))
+#         chunks = list(stream_chunks(content))
+#         print(f"DEBUG: {blob.name} -> {len(chunks)} chunks generated")
 
-        embeddings = embedding_utils.get_embedding(chunks)
-        vector_store.save_chunks(blob.name, chunks, embeddings)
+#         embeddings = embedding_utils.get_embedding(chunks)
+#         vector_store_lance.save_chunks(blob.name, chunks, embeddings)
 
-    return {"status": "embedding saved to ChromaDB"}
+#     return {"status": "embedding saved to ChromaDB"}
 
 
 from backend.services.rag_engine import (
@@ -128,43 +129,43 @@ from backend.services.rag_engine import (
 class AskRequest(BaseModel):
     question: str
 
-from fastapi import Request
-from backend.services.crew.orchestrator_agent import CrewOrchestrator
-from backend.services.tts import synthesize_text_to_gcs
+# from fastapi import Request
+# from backend.services.crew.orchestrator_agent import CrewOrchestrator
+# from backend.services.tts import synthesize_text_to_gcs
 
-@app.post("/ask")
-async def ask_endpoint(request: Request):
+# @app.post("/ask")
+# async def ask_endpoint(request: Request):
   
-    body = await request.json()
-    question = body.get("question")
+#     body = await request.json()
+#     question = body.get("question")
 
-    session_id = request.get("session_id", "default_session")
-    orchestrator = CrewOrchestrator(session_id=session_id)
+#     session_id = request.get("session_id", "default_session")
+#     orchestrator = CrewOrchestrator(session_id=session_id)
 
-    if not question:
-        return {"error": "No question provided"}
+#     if not question:
+#         return {"error": "No question provided"}
 
-    # Run CrewAI multi-agent pipeline
-    orchestrator = CrewOrchestrator()
-    # final_answer = orchestrator.run(question)
-    # final_answer, intent = route_question(question)
-    final_answer = orchestrator.run(question)
+#     # Run CrewAI multi-agent pipeline
+#     orchestrator = CrewOrchestrator()
+#     # final_answer = orchestrator.run(question)
+#     # final_answer, intent = route_question(question)
+#     final_answer = orchestrator.run(question)
 
-    # Generate speech URL
-    audio_url = synthesize_text_to_gcs(final_answer)
+#     # Generate speech URL
+#     audio_url = synthesize_text_to_gcs(final_answer)
 
-    return {
-        "question": question,
-        "answer": final_answer,
-        "audio_url": audio_url
-    }
+#     return {
+#         "question": question,
+#         "answer": final_answer,
+#         "audio_url": audio_url
+#     }
 
 
-@app.get("/test_summary")
-def test_summary():
-    from backend.services.summary_service import generate_summary
-    text = "This is a test transcript. It teaches how to create AI agents using tools..."
-    return {"summary": generate_summary(text)}
+# @app.get("/test_summary")
+# def test_summary():
+#     from backend.services.summary_service import generate_summary
+#     text = "This is a test transcript. It teaches how to create AI agents using tools..."
+#     return {"summary": generate_summary(text)}
 
 
 # @app.post("/stt")
@@ -203,6 +204,8 @@ async def stt_route(file: UploadFile = File(...)):
         transcript += result.alternatives[0].transcript
 
     return {"transcript": transcript}
+
+app.include_router(router)
 ####
 
 @app.post("/test_intent")
@@ -222,3 +225,54 @@ def ask_new(req: dict):
     print(f"question: {question}")
     answer = orchestrator.run(question)
     return {"question": question, "answer": answer}
+
+
+
+# =========================
+#  ADD THIS TO main.py
+# =========================
+from fastapi import UploadFile, File
+from google.cloud import storage
+import uuid
+from openai import OpenAI
+import os
+import base64
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+BUCKET_NAME = os.getenv("GCS_BUCKET")
+
+
+@app.post("/tts")
+async def text_to_speech(req: dict):
+    """
+    Convert text → MP3 using OpenAI TTS.
+    Store MP3 in GCS and return public URL.
+    """
+    text = req.get("text", "").strip()
+    session_id = req.get("session_id", "default")
+
+    if not text:
+        return {"error": "text is required"}
+
+    # ---- 1) Call OpenAI TTS ----
+    audio_response = client.audio.speech.create(
+        model="gpt-4o-mini-tts",
+        voice="alloy",
+        input=text,
+        format="mp3"
+    )
+
+    audio_bytes = audio_response.read()
+
+    # ---- 2) Upload to GCS ----
+    filename = f"tts/{session_id}_{uuid.uuid4()}.mp3"
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(BUCKET_NAME)
+    blob = bucket.blob(filename)
+
+    blob.upload_from_string(audio_bytes, content_type="audio/mpeg")
+
+    # Make the file public
+    blob.make_public()
+
+    return {"audio_url": blob.public_url}

@@ -4,7 +4,6 @@ import os
 from fastapi import APIRouter
 from backend.services.gcs_loader import load_transcript
 from backend.services.summary_service import generate_summary
-from backend.services.vector_store import save_summary_to_gcs
 from backend.services.gcs_loader import get_client
 
 router = APIRouter()
@@ -35,3 +34,18 @@ def generate_summaries():
             summary_results[blob.name] = "summary saved"
 
     return {"status": "summaries generated", "details": summary_results}
+
+
+def save_summary_to_gcs(bucket_name: str, video_name: str, summary: str):
+    """
+    Save summary text to GCS in summaries/ folder.
+    """
+    storage_client = get_client()
+    bucket = storage_client.bucket(bucket_name)
+
+    blob_name = f"summaries/{video_name.replace('.txt', '_summary.txt')}"
+    blob = bucket.blob(blob_name)
+
+    blob.upload_from_string(summary, content_type="text/plain")
+
+    return blob_name

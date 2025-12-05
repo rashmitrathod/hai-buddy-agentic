@@ -1,7 +1,8 @@
 import json
 from backend.services.intent_classifier import classify_intent
 from backend.services.language_detector import is_hinglish
-from backend.services.vector_store import query_chunks
+# from backend.services.vector_store import query_chunks
+from backend.services.vector_store_lance import query_chunks
 from backend.services.memory_service import recall_memory, write_memory
 from backend.services.crew.orchestrator_agent import orchestrator
 from backend.services.persona import build_persona_prompt

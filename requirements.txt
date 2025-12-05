@@ -22,3 +22,6 @@ openai==1.24.0
 
 chromadb==0.4.24
 onnxruntime==1.23.2
+
+lancedb==0.5.7
+tiktoken==0.7.0

@@ -1,28 +1,26 @@
-from openai import OpenAI
 import os
+from openai import OpenAI
 
-from backend.services.embedding_utils import get_embedding
-from backend.services.vector_store import get_collection
+from backend.services.vector_store_lance import query_chunks
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+
 def rag_answer(query: str):
-    # 1. Embed the question
-    query_embedding = get_embedding([query])[0]
+    """
+    Simple RAG utility:
+    1. Retrieve relevant transcript chunks using LanceDB
+    2. Build context
+    3. Generate answer from LLM
+    """
 
-    # 2. Search similar chunks in ChromaDB
-    collection = get_collection()
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=5
-    )
-
-    retrieved_chunks = results.get("documents", [[]])[0]
+    # 1. Retrieve chunks using LanceDB (internally performs embeddings)
+    retrieved_chunks = query_chunks(query)
 
     if not retrieved_chunks:
-        return "No relevant context found in transcripts."
+        return "I don’t see this in the uploaded course transcripts."
 
-    # 3. Build prompt
+    # 2. Build RAG context block
     context_text = "\n\n".join(retrieved_chunks)
 
     prompt = f"""
@@ -32,21 +30,24 @@ Use ONLY the following transcript context to answer the question.
 If the answer is not present in the transcript, say:
 "I don’t see this in the uploaded course transcripts."
 
+---------------------
 Context:
 {context_text}
+---------------------
 
 Question:
 {query}
 
-Answer in clear bullet points where possible.
+Answer clearly and concisely. Use bullet points if helpful.
 """
 
-    # 4. Call LLM for final answer
-    completion = client.chat.completions.create(
-        model="gpt-4.1-mini",
+    # 3. Generate final answer using OpenAI LLM
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {"role": "user", "content": prompt}
-        ]
+        ],
+        max_tokens=300
     )
 
-    return completion.choices[0].message.content
+    return response.choices[0].message.content

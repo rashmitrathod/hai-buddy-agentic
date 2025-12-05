@@ -4,54 +4,47 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def generate_summary(transcript_text: str) -> str:
-    print("Generating summary... transcript length:", len(transcript_text))
-
     prompt = f"""
-    Summarize the following lecture transcript into 8-10 concise sentences:
+    Summarize the following lecture transcript into 8–10 very concise sentences:
 
     ---
     {transcript_text}
     ---
     """
 
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[{"role": "user", "content": prompt}],
-    #     max_tokens=400,
-    #     timeout=30   # timeout to avoid hanging
-    # )
-    # summary = response.choices[0].message.content.strip()
-
-
     response = client.chat.completions.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=400,
-        timeout=30
+        messages=[
+            {"role": "system", "content": "You summarize course transcripts clearly and concisely."},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=300
     )
-    summary = response.choices[0].message.content
 
+    return response.choices[0].message.content.strip()
 
-    print("Summary generated. Length:", len(summary))
-    return summary
 
 def generate_summary_for_question(question: str) -> str:
     """
-    Create notes/summary for user question.
-    e.g. 'Make notes for video 3'
+    Used when intent classifier detects: notes / summary request
+    e.g. "Make notes for video 3"
     """
-    prompt = f"Make simple, short notes for: {question}"
 
-    # response = client.chat.completions.create(
-    #     model="gpt-4o-mini",
-    #     messages=[{"role": "user", "content": prompt}],
-    #     max_tokens=300
-    # )
-    # return response.choices[0].message.content
+    prompt = f"""
+    Create short, simple notes for the following request:
 
+    "{question}"
 
-    response = client.responses.create(
-    model="gpt-4o-mini",
-    input=[{"role": "user", "content": prompt}],
-    max_output_tokens=300)
-    return response.output_text
+    The notes must be concise (4–6 bullets) and easy to understand.
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "You generate concise study notes."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=200
+    )
+
+    return response.choices[0].message.content.strip()

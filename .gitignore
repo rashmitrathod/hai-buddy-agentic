@@ -26,3 +26,4 @@ dist/
 build/
 # Chroma persistent DB
 chroma_db/
+lancedb/

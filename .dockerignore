@@ -26,6 +26,7 @@ chroma/
 chromadb/
 vector_store/
 data/
+lancedb/
 *.sqlite
 
 # Mac / OS / Misc
